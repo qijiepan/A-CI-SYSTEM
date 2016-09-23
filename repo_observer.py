@@ -6,6 +6,11 @@ __author__ = 'Qijie Pan'
    9/21/2016
 
 '''
+import argparse
+import os
+import socket
+import subprocess
+import time
 
 
 def poll():
@@ -27,5 +32,27 @@ while True:
         #  for changes. If there's a change, it will drop a .commit_id file
         #  with the latest commit in the current working directory
         subprocess.check_output(["./update_repo.sh"], args.repo)
-    except subprocess.CallProcessError as e:
+    except subprocess.CalledProcessError as e:
         raise Exception("Could not update and check repository. " + "Reason: %s" % e.output)
+
+    if os.path.isfile(".commit_id"):
+        try:
+            response = helpers.communicate(dispatcher_host,
+                                           int(dispatcher_port),
+                                           "status")
+        except socket.error as e:
+            raise Exception("Could not communicate with the dispatcher server: %s" % e)
+
+        if response == "OK":
+            commit = ""
+            with open(".commit_id", "r") as f:
+                commit = f.readline()
+            response = helpers.communicate(dispatcher_host,
+                                           int(dispatcher_port),
+                                           "dispatcher:%s" % commit)
+            if response != "OK":
+                raise Exception("Could not dispatcher the test %s" % response)
+            print("Dispatched!")
+        else:
+            raise Exception("Could not dispatche the test %s" % response)
+    time.sleep(5)
